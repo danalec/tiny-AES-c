@@ -128,7 +128,7 @@ static int test_encrypt_ecb(void)
 
     printf("ECB encrypt: ");
 
-    if (0 == memcmp((char*) out, (char*) in, 16)) {
+    if (0 == memcmp(out, in, 16)) {
         printf("SUCCESS!\n");
 	return(0);
     } else {
@@ -173,7 +173,7 @@ static int test_decrypt_cbc(void)
 
     printf("CBC decrypt: ");
 
-    if (0 == memcmp((char*) out, (char*) in, 64)) {
+    if (0 == memcmp(out, in, 64)) {
         printf("SUCCESS!\n");
 	return(0);
     } else {
@@ -216,7 +216,7 @@ static int test_encrypt_cbc(void)
 
     printf("CBC encrypt: ");
 
-    if (0 == memcmp((char*) out, (char*) in, 64)) {
+    if (0 == memcmp(out, in, 64)) {
         printf("SUCCESS!\n");
 	return(0);
     } else {
@@ -304,7 +304,7 @@ static int test_decrypt_ecb(void)
 
     printf("ECB decrypt: ");
 
-    if (0 == memcmp((char*) out, (char*) in, 16)) {
+    if (0 == memcmp(out, in, 16)) {
         printf("SUCCESS!\n");
 	return(0);
     } else {

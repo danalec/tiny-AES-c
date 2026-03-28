@@ -1,83 +1,163 @@
 ![CI](https://github.com/danalec/tiny-AES-c/actions/workflows/c-cpp.yml/badge.svg)
-### Tiny AES in C
 
-This is a small and portable implementation of the AES [ECB](https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Electronic_Codebook_.28ECB.29), [CTR](https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Counter_.28CTR.29) and [CBC](https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Cipher_Block_Chaining_.28CBC.29) encryption algorithms written in C.
+# Tiny AES in C
 
-You can override the default key-size of 128 bit with 192 or 256 bit by defining the symbols AES192 or AES256 in [`aes.h`](https://github.com/danalec/tiny-AES-c/blob/master/aes.h).
+A small, simple, and portable AES encryption library written in pure C. No dependencies, no external libraries - just drop in the files and use it.
 
-The API is very simple and looks like this (I am using C99 `<stdint.h>`-style annotated types):
+Perfect for embedded systems, microcontrollers, or any project where you need encryption without the complexity of full crypto libraries like OpenSSL.
 
-```C
-/* Initialize context calling one of: */
+## What is AES?
+
+AES (Advanced Encryption Standard) is a widely-used symmetric encryption algorithm. It encrypts data in 16-byte blocks using a key. This library supports:
+
+- **AES-128** - 16-byte key (default)
+- **AES-192** - 24-byte key  
+- **AES-256** - 32-byte key (most secure)
+
+## Encryption Modes
+
+| Mode | Description | Best For |
+|------|-------------|----------|
+| **ECB** | Simplest, encrypts each block independently | Not recommended for most uses (patterns visible) |
+| **CBC** | Chains blocks together with an IV | General-purpose encryption |
+| **CTR** | Turns block cipher into stream cipher | Streaming data, random access |
+
+All three modes are enabled by default. You can disable any mode in `aes.h` to reduce code size.
+
+## Quick Start
+
+```c
+#include "aes.h"
+
+int main() {
+    // Your 128-bit key (16 bytes)
+    uint8_t key[16] = {0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+                       0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c};
+    
+    // Data to encrypt (must be multiple of 16 bytes)
+    uint8_t data[32] = "Hello, this is a secret!!";
+    
+    // Initialize
+    struct AES_ctx ctx;
+    AES_init_ctx(&ctx, key);
+    
+    // For CBC mode, you also need an IV (16 bytes, should be random/unique)
+    uint8_t iv[16] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                      0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
+    AES_init_ctx_iv(&ctx, key, iv);
+    
+    // Encrypt
+    AES_CBC_encrypt_buffer(&ctx, data, 32);
+    
+    // Decrypt
+    AES_CBC_decrypt_buffer(&ctx, data, 32);
+    
+    return 0;
+}
+```
+
+## API Reference
+
+### Initialization
+
+```c
+// Basic init (for ECB)
 void AES_init_ctx(struct AES_ctx* ctx, const uint8_t* key);
+
+// Init with IV (for CBC/CTR)
 void AES_init_ctx_iv(struct AES_ctx* ctx, const uint8_t* key, const uint8_t* iv);
 
-/* ... or reset IV at random point: */
+// Change IV later
 void AES_ctx_set_iv(struct AES_ctx* ctx, const uint8_t* iv);
+```
 
-/* Then start encrypting and decrypting with the functions below: */
+### ECB Mode (16-byte blocks)
+
+```c
 void AES_ECB_encrypt(const struct AES_ctx* ctx, uint8_t* buf);
 void AES_ECB_decrypt(const struct AES_ctx* ctx, uint8_t* buf);
+```
 
-void AES_CBC_encrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, size_t length);
-void AES_CBC_decrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, size_t length);
+### CBC Mode (buffer of any length, must be multiple of 16)
 
-/* Same function for encrypting as for decrypting in CTR mode */
+```c
+int AES_CBC_encrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, size_t length);
+int AES_CBC_decrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, size_t length);
+```
+
+Returns 0 on success, -1 if length isn't a multiple of 16.
+
+### CTR Mode (any length, same function for encrypt/decrypt)
+
+```c
 void AES_CTR_xcrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, size_t length);
 ```
 
-Important notes: 
- * No padding is provided so for CBC and ECB all buffers should be multiples of 16 bytes. For padding [PKCS7](https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7) is recommendable.
- * ECB mode is considered unsafe for most uses and is not implemented in streaming mode. If you need this mode, call the function for every block of 16 bytes you need encrypted. See [wikipedia's article on ECB](https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Electronic_Codebook_(ECB)) for more details.
- * This library is designed for small code size and simplicity, intended for cases where small binary size, low memory footprint and portability is more important than high performance. If speed is a concern, you can try more complex libraries, e.g. [Mbed TLS](https://tls.mbed.org/), [OpenSSL](https://www.openssl.org/) etc.
+## Important Notes
 
-You can choose to use any or all of the modes-of-operations, by defining the symbols CBC, CTR or ECB in [`aes.h`](https://github.com/danalec/tiny-AES-c/blob/master/aes.h) (read the comments for clarification).
+1. **Padding**: CBC and ECB require data to be multiples of 16 bytes. Use [PKCS7 padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7) for arbitrary-length data.
 
-C++ users should `#include` [aes.hpp](https://github.com/danalec/tiny-AES-c/blob/master/aes.hpp) instead of [aes.h](https://github.com/danalec/tiny-AES-c/blob/master/aes.h)
+2. **IV uniqueness**: Never reuse the same IV with the same key in CBC or CTR mode - this compromises security.
 
-There is no built-in error checking or protection from out-of-bounds memory access errors as a result of malicious input.
+3. **ECB is weak**: ECB encrypts identical blocks identically, revealing patterns. Avoid for sensitive data.
 
-The module uses less than 200 bytes of RAM and 1-2K ROM when compiled for ARM, but YMMV depending on which modes are enabled.
+4. **No error checking**: This is a minimal library. Validate your inputs.
 
-It is one of the smallest implementations in C I've seen yet, but do contact me if you know of something smaller (or have improvements to the code here). 
+## Compilation
 
-I've successfully used the code on 64bit x86, 32bit ARM and 8 bit AVR platforms.
+```bash
+# Default (AES-128, all modes)
+gcc -c aes.c
 
+# AES-256
+gcc -DAES256=1 -c aes.c
 
-GCC size output when only CTR mode is compiled for ARM:
+# Only CTR mode (smallest)
+gcc -DCBC=0 -DECB=0 -DCTR=1 -c aes.c
+```
 
-    $ arm-none-eabi-gcc -Os -DCBC=0 -DECB=0 -DCTR=1 -c aes.c
-    $ size aes.o
-       text    data     bss     dec     hex filename
-       1171       0       0    1171     493 aes.o
+## Code Size
 
-.. and when compiling for the THUMB instruction set, we end up well below 1K in code size.
+| Configuration | ARM (text) | Thumb (text) |
+|---------------|------------|--------------|
+| CTR only | ~1.1KB | ~900 bytes |
+| All modes | ~2KB | ~1.5KB |
 
-    $ arm-none-eabi-gcc -Os -mthumb -DCBC=0 -DECB=0 -DCTR=1 -c aes.c
-    $ size aes.o
-       text    data     bss     dec     hex filename
-        903       0       0     903     387 aes.o
+Uses less than 200 bytes of RAM.
 
+## Platforms
 
-I am using the Free Software Foundation, ARM GCC compiler:
+Works on:
+- 64-bit x86/x64
+- 32-bit ARM
+- 8-bit AVR (Arduino)
+- Most embedded platforms
 
-    $ arm-none-eabi-gcc --version
-    arm-none-eabi-gcc (4.8.4-1+11-1) 4.8.4 20141219 (release)
-    Copyright (C) 2013 Free Software Foundation, Inc.
-    This is free software; see the source for copying conditions.  There is NO
-    warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+## Testing
 
+```bash
+# Build and run tests
+make test
 
+# Verify against NIST test vectors
+gcc -DAES256=1 verify_aes.c -o verify_aes && ./verify_aes
+```
 
+## C++ Usage
 
-This implementation is verified against the data in:
+C++ users should include `aes.hpp` instead of `aes.h`:
 
-[National Institute of Standards and Technology Special Publication 800-38A 2001 ED](http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf) Appendix F: Example Vectors for Modes of Operation of the AES.
+```cpp
+#include "aes.hpp"
+```
 
-The other appendices in the document are valuable for implementation details on e.g. padding, generation of IVs and nonces in CTR-mode etc.
+## License
 
+Public domain - use freely for any purpose.
 
-A heartfelt thank-you to [all the nice people](https://github.com/kokke/tiny-AES-c/graphs/contributors) out there who have contributed to this project.
+## Credits
 
+Original implementation by [kokke](https://github.com/kokke/tiny-AES-c).  
+Thanks to [all contributors](https://github.com/kokke/tiny-AES-c/graphs/contributors) for improvements and fixes.
 
-All material in this repository is in the public domain.
+Verified against [NIST SP 800-38A](http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf) test vectors.
